@@ -17,19 +17,11 @@ import me.jellysquid.mods.sodium.client.util.NativeBuffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * A collection of temporary buffers for each worker thread which will be used to build chunk meshes for given render
- * passes. This makes a best-effort attempt to pick a suitable size for each scratch buffer, but will never try to
- * shrink a buffer.
- */
 public class ChunkBuildBuffers {
-    private final Reference2ReferenceOpenHashMap<TerrainRenderPass, BakedChunkModelBuilder> builders = new Reference2ReferenceOpenHashMap<>();
-
-    private final ChunkVertexType vertexType;
-
-    public ChunkBuildBuffers(ChunkVertexType vertexType) {
-        this.vertexType = vertexType;
+    private final ThreadLocal<Reference2ReferenceOpenHashMap<TerrainRenderPass, BakedChunkModelBuilder>> builders = ThreadLocal.withInitial(() -> {
+        Reference2ReferenceOpenHashMap<TerrainRenderPass, BakedChunkModelBuilder> map = new Reference2ReferenceOpenHashMap<>();
 
         for (TerrainRenderPass pass : DefaultTerrainRenderPasses.ALL) {
             var vertexBuffers = new ChunkMeshBufferBuilder[ModelQuadFacing.COUNT];
@@ -38,27 +30,30 @@ public class ChunkBuildBuffers {
                 vertexBuffers[facing] = new ChunkMeshBufferBuilder(this.vertexType, 128 * 1024);
             }
 
-            this.builders.put(pass, new BakedChunkModelBuilder(vertexBuffers));
+            map.put(pass, new BakedChunkModelBuilder(vertexBuffers));
         }
+
+        return map;
+    });
+
+    private final ChunkVertexType vertexType;
+
+    public ChunkBuildBuffers(ChunkVertexType vertexType) {
+        this.vertexType = vertexType;
     }
 
     public void init(BuiltSectionInfo.Builder renderData, int sectionIndex) {
-        for (var builder : this.builders.values()) {
+        for (var builder : this.builders.get().values()) {
             builder.begin(renderData, sectionIndex);
         }
     }
 
     public ChunkModelBuilder get(Material material) {
-        return this.builders.get(material.pass);
+        return this.builders.get().get(material.pass);
     }
 
-    /**
-     * Creates immutable baked chunk meshes from all non-empty scratch buffers. This is used after all blocks
-     * have been rendered to pass the finished meshes over to the graphics card. This function can be called multiple
-     * times to return multiple copies.
-     */
     public BuiltSectionMeshParts createMesh(TerrainRenderPass pass) {
-        var builder = this.builders.get(pass);
+        var builder = this.builders.get().get(pass);
 
         List<ByteBuffer> vertexBuffers = new ArrayList<>();
         VertexRange[] vertexRanges = new VertexRange[ModelQuadFacing.COUNT];
@@ -95,8 +90,8 @@ public class ChunkBuildBuffers {
     }
 
     public void destroy() {
-        for (var builder : this.builders.values()) {
+        for (var builder : this.builders.get().values()) {
             builder.destroy();
         }
     }
-}
+    }
