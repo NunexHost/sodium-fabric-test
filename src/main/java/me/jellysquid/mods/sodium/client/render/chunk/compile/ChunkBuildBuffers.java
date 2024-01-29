@@ -24,13 +24,13 @@ public class ChunkBuildBuffers {
         Reference2ReferenceOpenHashMap<TerrainRenderPass, BakedChunkModelBuilder> map = new Reference2ReferenceOpenHashMap<>();
 
         for (TerrainRenderPass pass : DefaultTerrainRenderPasses.ALL) {
-            var vertexBuffers = new ChunkMeshBufferBuilder[ModelQuadFacing.COUNT];
+        var vertexBuffers = new ChunkMeshBufferBuilder[ModelQuadFacing.COUNT];
 
-            for (int facing = 0; facing < ModelQuadFacing.COUNT; facing++) {
-                vertexBuffers[facing] = new ChunkMeshBufferBuilder(this.vertexType, 128 * 1024);
-            }
+        for (int facing = 0; facing < ModelQuadFacing.COUNT; facing++) {
+            vertexBuffers[facing] = new ChunkMeshBufferBuilder(this.vertexType, 128 * 1024);
+        }
 
-            map.put(pass, new BakedChunkModelBuilder(vertexBuffers));
+        this.builders.put(pass, new BakedChunkModelBuilder(vertexBuffers));
         }
 
         return map;
