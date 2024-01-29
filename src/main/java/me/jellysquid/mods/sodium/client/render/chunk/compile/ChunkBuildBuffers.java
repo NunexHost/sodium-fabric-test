@@ -32,9 +32,7 @@ public class ChunkBuildBuffers {
 
         this.builders.put(pass, new BakedChunkModelBuilder(vertexBuffers));
         }
-
-        return map;
-    });
+    }
 
     private final ChunkVertexType vertexType;
 
